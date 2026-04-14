@@ -1,6 +1,5 @@
 name: Twitter Clone CI
 
-# Trigger the pipeline on pushes or pull requests to the main branch
 on:
   push:
     branches: ["main"]
@@ -8,34 +7,62 @@ on:
     branches: ["main"]
 
 jobs:
-  # --- Job 1: Build the Backend ---
+  # --- Job 1: Build & Scan Backend ---
   build-backend:
-    name: Build Backend Image
+    name: Build & Scan Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Because our Dockerfile handles npm install, we just need to build the image
+      # 1. Dependency Scanning (SCA)
+      - name: Backend Dependency Scan (npm audit)
+        working-directory: ./backend
+        # "|| true" ensures the pipeline doesn't crash on Day 1 just because of a minor vulnerability
+        run: npm audit --audit-level=high || true
+
+      # 2. Build Image
       - name: Build Backend Docker Image
         working-directory: ./backend
         run: docker build -t adilkhan/twitter-backend:latest .
 
-  # --- Job 2: Build the Frontend ---
+      # 3. Container Scanning
+      - name: Trivy Container Scan (Backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "adilkhan/twitter-backend:latest"
+          format: "table"
+          exit-code: "0" # Change to '1' later if you want to block deployment on failed scans
+          severity: "CRITICAL,HIGH"
+
+  # --- Job 2: Build & Scan Frontend ---
   build-frontend:
-    name: Build Frontend Image
+    name: Build & Scan Frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Build the frontend image using the Nginx multi-stage Dockerfile
+      # 1. Dependency Scanning (SCA)
+      - name: Frontend Dependency Scan (npm audit)
+        working-directory: ./frontend
+        run: npm audit --audit-level=high || true
+
+      # 2. Build Image
       - name: Build Frontend Docker Image
         working-directory: ./frontend
         run: docker build -t adilkhan/twitter-frontend:latest .
 
-  # --- Job 3: Testing (Placeholder for your DevOps Report) ---
-  # This job waits for the builds to finish before running
+      # 3. Container Scanning
+      - name: Trivy Container Scan (Frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "adilkhan/twitter-frontend:latest"
+          format: "table"
+          exit-code: "0"
+          severity: "CRITICAL,HIGH"
+
+  # --- Job 3: Security & Testing ---
   security-and-testing:
     name: Run Tests & Scans
     needs: [build-backend, build-frontend]
@@ -43,6 +70,34 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Output Pipeline Status
-        run: echo "Images built successfully! Ready for SonarQube scanning and Postman API tests."
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman (Postman CLI)
+        run: npm install -g newman
+
+      - name: Start Backend Server in Background
+        working-directory: ./backend
+        run: |
+          npm install
+          npm start &  
+          sleep 10
+        env:
+          MONGO_URI: ${{ secrets.TEST_MONGO_URI }}
+          JWT_SECRET: "test-secret-key"
+          PORT: 5000
+
+      - name: Run Postman API Tests
+        # Ensure you export your Postman collection to this path in your repo!
+        run: newman run ./tests/Twitter-Clone-Postman-Collection.json
