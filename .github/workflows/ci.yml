@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  # --- Job 1: Build & Scan Backend ---
+  # --- Job 1: Build, Scan & Push Backend ---
   build-backend:
     name: Build & Scan Backend
     runs-on: ubuntu-latest
@@ -18,24 +18,34 @@ jobs:
       # 1. Dependency Scanning (SCA)
       - name: Backend Dependency Scan (npm audit)
         working-directory: ./backend
-        # "|| true" ensures the pipeline doesn't crash on Day 1 just because of a minor vulnerability
         run: npm audit --audit-level=high || true
 
       # 2. Build Image
       - name: Build Backend Docker Image
         working-directory: ./backend
-        run: docker build -t adilkhan/twitter-backend:latest .
+        run: docker build -t adilkhan22/twitter-backend:latest .
 
       # 3. Container Scanning
       - name: Trivy Container Scan (Backend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "adilkhan/twitter-backend:latest"
+          image-ref: "adilkhan22/twitter-backend:latest"
           format: "table"
-          exit-code: "0" # Change to '1' later if you want to block deployment on failed scans
+          exit-code: "0"
           severity: "CRITICAL,HIGH"
 
-  # --- Job 2: Build & Scan Frontend ---
+      # 4. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 5. Push Image to Docker Hub
+      - name: Push Backend Image
+        run: docker push adilkhan22/twitter-backend:latest
+
+  # --- Job 2: Build, Scan & Push Frontend ---
   build-frontend:
     name: Build & Scan Frontend
     runs-on: ubuntu-latest
@@ -51,16 +61,27 @@ jobs:
       # 2. Build Image
       - name: Build Frontend Docker Image
         working-directory: ./frontend
-        run: docker build -t adilkhan/twitter-frontend:latest .
+        run: docker build -t adilkhan22/twitter-frontend:latest .
 
       # 3. Container Scanning
       - name: Trivy Container Scan (Frontend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "adilkhan/twitter-frontend:latest"
+          image-ref: "adilkhan22/twitter-frontend:latest"
           format: "table"
           exit-code: "0"
           severity: "CRITICAL,HIGH"
+
+      # 4. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 5. Push Image to Docker Hub
+      - name: Push Frontend Image
+        run: docker push adilkhan22/twitter-frontend:latest
 
   # --- Job 3: Security & Testing ---
   security-and-testing:
@@ -92,8 +113,7 @@ jobs:
         run: |
           npm install
           npm start &  
-          npx wait-on http:///localhost:5000/health
-
+          npx wait-on http://localhost:5000/health
         env:
           MONGO_URI: ${{ secrets.TEST_MONGO_URI }}
           JWT_SECRET: "SecretKey"
@@ -101,7 +121,6 @@ jobs:
           NODE_ENV: development
 
       - name: Run Postman API Tests
-        # Ensure you export your Postman collection to this path in your repo!
         run: |
           newman run ./tests/postman/collection.json \
           -e ./tests/postman/environment.json
