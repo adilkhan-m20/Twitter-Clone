@@ -98,6 +98,7 @@ jobs:
           MONGO_URI: ${{ secrets.TEST_MONGO_URI }}
           JWT_SECRET: "test-secret-key"
           PORT: 5000
+          NODE_ENV: development
 
       - name: Run Postman API Tests
         # Ensure you export your Postman collection to this path in your repo!
