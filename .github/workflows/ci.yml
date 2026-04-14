@@ -74,7 +74,7 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -92,7 +92,8 @@ jobs:
         run: |
           npm install
           npm start &  
-          sleep 10
+          npx wait-on http:///localhost:5000
+
         env:
           MONGO_URI: ${{ secrets.TEST_MONGO_URI }}
           JWT_SECRET: "test-secret-key"
@@ -100,4 +101,6 @@ jobs:
 
       - name: Run Postman API Tests
         # Ensure you export your Postman collection to this path in your repo!
-        run: newman run ./tests/twitter-clone.postman_collection.json
+        run: |
+          newman run ./tests/postman/collection.json \
+          -e ./tests/postman/environment.json
