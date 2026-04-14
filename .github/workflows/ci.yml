@@ -1,0 +1,48 @@
+name: Twitter Clone CI
+
+# Trigger the pipeline on pushes or pull requests to the main branch
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # --- Job 1: Build the Backend ---
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Because our Dockerfile handles npm install, we just need to build the image
+      - name: Build Backend Docker Image
+        working-directory: ./backend
+        run: docker build -t adilkhan/twitter-backend:latest .
+
+  # --- Job 2: Build the Frontend ---
+  build-frontend:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Build the frontend image using the Nginx multi-stage Dockerfile
+      - name: Build Frontend Docker Image
+        working-directory: ./frontend
+        run: docker build -t adilkhan/twitter-frontend:latest .
+
+  # --- Job 3: Testing (Placeholder for your DevOps Report) ---
+  # This job waits for the builds to finish before running
+  security-and-testing:
+    name: Run Tests & Scans
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Output Pipeline Status
+        run: echo "Images built successfully! Ready for SonarQube scanning and Postman API tests."
