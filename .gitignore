@@ -29,4 +29,5 @@ README.md
 UI-DESIGN-STEPS.md
 *.tfstate
 *.tfstate.backup
-.terraform/
+terraform/.terraform/
+terraform/.terraform.lock.hcl
