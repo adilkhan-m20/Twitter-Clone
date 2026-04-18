@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: twitter-backend
+  labels:
+    app: twitter-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: twitter-backend
+  template:
+    metadata:
+      labels:
+        app: twitter-backend
+    spec:
+      containers:
+        - name: backend
+          image: adilkhan22/twitter-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          # Instead of a list of hardcoded sensitive env vars, we pull them all from the Secret!
+          envFrom:
+            - secretRef:
+                name: twitter-backend-secrets
+          # We can leave non-sensitive variables like PORT standard
+          env:
+            - name: PORT
+              value: "5000"

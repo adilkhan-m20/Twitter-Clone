@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: twitter-frontend
+  labels:
+    app: twitter-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: twitter-frontend
+  template:
+    metadata:
+      labels:
+        app: twitter-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: adilkhan22/twitter-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80 # Nginx runs on port 80
