@@ -27,3 +27,6 @@ dist-ssr
 
 README.md
 UI-DESIGN-STEPS.md
+*.tfstate
+*.tfstate.backup
+.terraform/
